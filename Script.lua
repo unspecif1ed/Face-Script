@@ -15,6 +15,9 @@ local CHARS_PER_MOUTH_OPEN = 4  -- Number of characters per mouth open event
 local MAX_TALK_CHARS = 60  -- Maximum characters to process for talking
 local ENABLE_EYE_TRACKING = true  -- Enable/disable eye tracking
 local SHADOW_TWEEN_SPEED = 0.2
+local DAMAGE_THRESHOLD = 3  -- Minimum damage to trigger ouch face
+local OUCH_DURATION = 0.5  -- How long the ouch face stays
+local OUCH_SQUASH_SPEED = 0.08  -- Speed of ouch squash animation
 
 -- Setup
 local TweenService = game:GetService("TweenService")
@@ -81,10 +84,6 @@ local function setupFace(char)
 	eyeGui.LightInfluence = 1
 	eyeGui.ZOffset = 1
 
-	-- Determine eye textures based on gender
-	local eyePrefix = EYE_TYPE == 2 and "FemEye" or "Eye"
-	local closedPrefix = EYE_TYPE == 2 and "FemClosed" or "Closed"
-
 	-- Calculate centered position and size based on FACE_SIZE
 	local faceOffset = (1 - FACE_SIZE) / 2
 	local faceSizeUDim = UDim2.new(FACE_SIZE, 0, FACE_SIZE, 0)
@@ -99,7 +98,7 @@ local function setupFace(char)
 		local leftImg = Instance.new("ImageLabel")
 		leftImg.Name = "LeftEye" .. dir
 		leftImg.Parent = eyeGui
-		leftImg.Image = "rbxasset://facial/" .. eyePrefix .. dir .. "L.png"
+		leftImg.Image = "rbxasset://facial/" .. EYE_TYPE .. "Eye" .. dir .. "L.png"
 		leftImg.Size = faceSizeUDim
 		leftImg.Position = facePositionUDim
 		leftImg.BackgroundTransparency = 1
@@ -109,7 +108,7 @@ local function setupFace(char)
 		local rightImg = Instance.new("ImageLabel")
 		rightImg.Name = "RightEye" .. dir
 		rightImg.Parent = eyeGui
-		rightImg.Image = "rbxasset://facial/" .. eyePrefix .. dir .. "R.png"
+		rightImg.Image = "rbxasset://facial/" .. EYE_TYPE .. "Eye" .. dir .. "R.png"
 		rightImg.Size = faceSizeUDim
 		rightImg.Position = facePositionUDim
 		rightImg.BackgroundTransparency = 1
@@ -124,12 +123,32 @@ local function setupFace(char)
 	-- Reference center eyes as leftEye and rightEye for compatibility
 	local leftEye = leftEyeImages["C"]
 	local rightEye = rightEyeImages["C"]
+	
+	local leftOuchEye = nil	
+	leftOuchEye = Instance.new("ImageLabel")
+	leftOuchEye.Name = "LeftEyeOuch"
+	leftOuchEye.Parent = faceGui
+	leftOuchEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "OuchL.png"
+	leftOuchEye.Size = faceSizeUDim
+	leftOuchEye.Position = facePositionUDim
+	leftOuchEye.BackgroundTransparency = 1
+	leftOuchEye.ImageTransparency = 1
+	
+	local rightOuchEye = nil
+	rightOuchEye = Instance.new("ImageLabel")
+	rightOuchEye.Name = "RightEyeOuch"
+	rightOuchEye.Parent = faceGui
+	rightOuchEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "OuchR.png"
+	rightOuchEye.Size = faceSizeUDim
+	rightOuchEye.Position = facePositionUDim
+	rightOuchEye.BackgroundTransparency = 1
+	rightOuchEye.ImageTransparency = 1
 
 	-- Create closed eyes (ImageLabels that will slide)
 	local leftClosedEye = Instance.new("ImageLabel")
 	leftClosedEye.Name = "LeftClosedEye"
 	leftClosedEye.Parent = faceGui
-	leftClosedEye.Image = "rbxasset://facial/" .. closedPrefix .. "L.png"
+	leftClosedEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "ClosedL.png"
 	leftClosedEye.Size = faceSizeUDim
 	leftClosedEye.Position = facePositionUDim
 	leftClosedEye.BackgroundTransparency = 1
@@ -138,7 +157,7 @@ local function setupFace(char)
 	local rightClosedEye = Instance.new("ImageLabel")
 	rightClosedEye.Name = "RightClosedEye"
 	rightClosedEye.Parent = faceGui
-	rightClosedEye.Image = "rbxasset://facial/" .. closedPrefix .. "R.png"
+	rightClosedEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "ClosedR.png"
 	rightClosedEye.Size = faceSizeUDim
 	rightClosedEye.Position = facePositionUDim
 	rightClosedEye.BackgroundTransparency = 1
@@ -188,6 +207,15 @@ local function setupFace(char)
 	mouthIdle.BackgroundTransparency = 1
 	mouthIdle.ImageTransparency = 1  -- Start invisible
 	
+	local mouthOuch = Instance.new("ImageLabel")
+	mouthOuch.Name = "MouthOuch"
+	mouthOuch.Parent = faceGui
+	mouthOuch.Image = "rbxasset://facial/OuchMouth.png"
+	mouthOuch.Size = faceSizeUDim
+	mouthOuch.Position = facePositionUDim
+	mouthOuch.BackgroundTransparency = 1
+	mouthOuch.ImageTransparency = 1  -- Start invisible
+
 	local faceShadow = Instance.new("ImageLabel")
 	faceShadow.Name = "FaceShadow"
 	faceShadow.Parent = faceGui
@@ -200,7 +228,7 @@ local function setupFace(char)
 
 	faceGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 	eyeGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-	
+
 	local allEyeImages = {}
 
 	for _, img in pairs(leftEyeImages) do
@@ -210,7 +238,7 @@ local function setupFace(char)
 	for _, img in pairs(rightEyeImages) do
 		table.insert(allEyeImages, img)
 	end
-	
+
 	local eyeOriginalSize = leftEyeImages["C"].Size
 	local eyeOriginalPos = leftEyeImages["C"].Position
 
@@ -221,7 +249,8 @@ local function setupFace(char)
 	local rightEyebrowStartPos = rightEyebrow.Position
 	local mouthClosedOriginalSize = mouthClosed.Size
 	local mouthOpenOriginalSize = mouthOpen.Size
-	
+	local mouthOuchOriginalSize = mouthOuch.Size
+
 
 	local faceShadowTween = nil
 	local faceLightTween = nil
@@ -232,7 +261,7 @@ local function setupFace(char)
 		Enum.EasingStyle.Linear,
 		Enum.EasingDirection.Out
 	)
-	
+
 	local function setDownwardFaceEffects(enable)
 		if faceShadowEnabled == enable then
 			return
@@ -277,7 +306,7 @@ local function setupFace(char)
 	local lastInputTime = tick()
 	local isIdle = false
 	local nextIdleTime = tick() + math.random(10, 20)
-	
+
 	-- Blink function
 	local isBlinking = false
 	local function blink()
@@ -359,6 +388,112 @@ local function setupFace(char)
 			):Play()
 		end
 		isBlinking = false
+	end
+	
+	-- Ouch/damage function
+	local isOuching = false
+	local ouchBlinkResetSignal = nil
+	local function playOuchFace()
+		if isOuching then return end
+		isOuching = true
+
+		-- Signal blink loop to reset timer
+		if ouchBlinkResetSignal then
+			ouchBlinkResetSignal = true
+		end
+
+		local closeTweenInfo = TweenInfo.new(OUCH_SQUASH_SPEED, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local openTweenInfo = TweenInfo.new(OUCH_SQUASH_SPEED, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+		-- Wait for blink to finish if currently blinking
+		while isBlinking do
+			task.wait(0.01)
+		end
+
+		-- Squash open eyes vertically (like blinking)
+		local squashedSize = UDim2.new(eyeOriginalSize.X.Scale, 0, eyeOriginalSize.Y.Scale * EYE_SQUASH_AMOUNT, 0)
+		local squashOffset = (1 - EYE_SQUASH_AMOUNT) * eyeOriginalSize.Y.Scale / 2
+		local squashedPos = UDim2.new(eyeOriginalPos.X.Scale, 0, eyeOriginalPos.Y.Scale + squashOffset, 0)
+
+		local squashTweens = {}
+		for _, eye in ipairs(allEyeImages) do
+			local t = TweenService:Create(eye, closeTweenInfo, {Size = squashedSize, Position = squashedPos})
+			table.insert(squashTweens, t)
+			t:Play()
+		end
+		squashTweens[#squashTweens].Completed:Wait()
+
+		-- Hide open eyes completely, show ONLY ouch eyes (not blink closed eyes)
+		eyeGui.Enabled = false
+		leftOuchEye.ImageTransparency = 0
+		rightOuchEye.ImageTransparency = 0
+		-- Make sure closed eyes stay hidden
+		leftClosedEye.ImageTransparency = 1
+		rightClosedEye.ImageTransparency = 1
+
+		-- Squash ouch eyes horizontally (X axis)
+		local ouchSquashedSize = UDim2.new(eyeOriginalSize.X.Scale * 0.9, 0, eyeOriginalSize.Y.Scale, 0)
+		local ouchSquashOffset = (1 - 0.9) * eyeOriginalSize.X.Scale / 2
+		local ouchSquashedPos = UDim2.new(eyeOriginalPos.X.Scale + ouchSquashOffset, 0, eyeOriginalPos.Y.Scale, 0)
+
+		local squashLeftOuch = TweenService:Create(leftOuchEye, closeTweenInfo, {Size = ouchSquashedSize, Position = ouchSquashedPos})
+		local squashRightOuch = TweenService:Create(rightOuchEye, closeTweenInfo, {Size = ouchSquashedSize, Position = ouchSquashedPos})
+
+		squashLeftOuch:Play()
+		squashRightOuch:Play()
+
+		-- Squash mouth horizontally
+		mouthClosed.ImageTransparency = 1
+		mouthOuch.ImageTransparency = 0
+
+		local mouthSquashedSize = UDim2.new(mouthOuchOriginalSize.X.Scale * 0.85, 0, mouthOuchOriginalSize.Y.Scale, 0)
+		local mouthSquashAmount = mouthOuchOriginalSize.X.Scale * (1 - 0.85)
+		local mouthSquashOffset = mouthSquashAmount / 2
+		local mouthSquashedPos = UDim2.new(facePositionUDim.X.Scale + mouthSquashOffset, 0, facePositionUDim.Y.Scale, 0)
+
+		local squashMouth = TweenService:Create(mouthOuch, closeTweenInfo, {Size = mouthSquashedSize, Position = mouthSquashedPos})
+		squashMouth:Play()
+		squashMouth.Completed:Wait()
+
+		-- Reset open eyes
+		for _, eye in ipairs(allEyeImages) do
+			eye.Size = eyeOriginalSize
+			eye.Position = eyeOriginalPos
+		end
+
+		-- Hold ouch face
+		task.wait(OUCH_DURATION)
+
+		-- Unsquash ouch eyes back to normal
+		local unsquashLeftOuch = TweenService:Create(leftOuchEye, openTweenInfo, {Size = eyeOriginalSize, Position = eyeOriginalPos})
+		local unsquashRightOuch = TweenService:Create(rightOuchEye, openTweenInfo, {Size = eyeOriginalSize, Position = eyeOriginalPos})
+		local unsquashMouthOuch = TweenService:Create(mouthOuch, openTweenInfo, {Size = mouthOuchOriginalSize, Position = facePositionUDim})
+
+		unsquashLeftOuch:Play()
+		unsquashRightOuch:Play()
+		unsquashMouthOuch:Play()
+		unsquashMouthOuch.Completed:Wait()
+
+		-- Hide ouch face, show normal (squashed)
+		leftOuchEye.ImageTransparency = 1
+		rightOuchEye.ImageTransparency = 1
+		mouthOuch.ImageTransparency = 1
+		mouthClosed.ImageTransparency = 0
+
+		for _, eye in ipairs(allEyeImages) do
+			eye.Size = squashedSize
+			eye.Position = squashedPos
+		end
+
+		eyeGui.Enabled = true
+
+		-- Unsquash open eyes
+		for _, eye in ipairs(allEyeImages) do
+			TweenService:Create(eye, openTweenInfo, {Size = eyeOriginalSize, Position = eyeOriginalPos}):Play()
+		end
+
+		isOuching = false
+		ouchBlinkResetSignal = true
 	end
 
 	-- Eye tracking function
@@ -608,6 +743,21 @@ local function setupFace(char)
 		end
 	end)
 	
+	-- Detect damage
+	humanoid.HealthChanged:Connect(function(health)
+		-- Detect damage
+		local lastHealth = humanoid.Health
+		humanoid.HealthChanged:Connect(function(health)
+			local healthDiff = health - lastHealth
+			lastHealth = health
+
+			-- Only trigger on damage (negative health change)
+			if healthDiff < 0 and math.abs(healthDiff) >= DAMAGE_THRESHOLD and health > 0 then
+				playOuchFace()
+			end
+		end)
+	end)
+
 	-- Eye tracking loop
 	task.spawn(function()
 		while running and char.Parent do
