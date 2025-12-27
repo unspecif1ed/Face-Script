@@ -15,7 +15,7 @@ local CHARS_PER_MOUTH_OPEN = 4  -- Number of characters per mouth open event
 local MAX_TALK_CHARS = 60  -- Maximum characters to process for talking
 local ENABLE_EYE_TRACKING = true  -- Enable/disable eye tracking
 local SHADOW_TWEEN_SPEED = 0.2
-local DAMAGE_THRESHOLD = 1  -- Minimum damage to trigger ouch face
+local DAMAGE_THRESHOLD = 3  -- Minimum damage to trigger ouch face
 local OUCH_DURATION = 0.5  -- How long the ouch face stays
 local OUCH_SQUASH_SPEED = 0.08  -- Speed of ouch squash animation
 
@@ -84,6 +84,10 @@ local function setupFace(char)
 	eyeGui.LightInfluence = 1
 	eyeGui.ZOffset = 1
 
+	-- Determine eye textures based on gender
+	local eyePrefix = EYE_TYPE == 2 and "FemEye" or "Eye"
+	local closedPrefix = EYE_TYPE == 2 and "FemClosed" or "Closed"
+
 	-- Calculate centered position and size based on FACE_SIZE
 	local faceOffset = (1 - FACE_SIZE) / 2
 	local faceSizeUDim = UDim2.new(FACE_SIZE, 0, FACE_SIZE, 0)
@@ -98,7 +102,7 @@ local function setupFace(char)
 		local leftImg = Instance.new("ImageLabel")
 		leftImg.Name = "LeftEye" .. dir
 		leftImg.Parent = eyeGui
-		leftImg.Image = "rbxasset://facial/" .. EYE_TYPE .. "Eye" .. dir .. "L.png"
+		leftImg.Image = "rbxasset://facial/" .. eyePrefix .. dir .. "L.png"
 		leftImg.Size = faceSizeUDim
 		leftImg.Position = facePositionUDim
 		leftImg.BackgroundTransparency = 1
@@ -108,7 +112,7 @@ local function setupFace(char)
 		local rightImg = Instance.new("ImageLabel")
 		rightImg.Name = "RightEye" .. dir
 		rightImg.Parent = eyeGui
-		rightImg.Image = "rbxasset://facial/" .. EYE_TYPE .. "Eye" .. dir .. "R.png"
+		rightImg.Image = "rbxasset://facial/" .. eyePrefix .. dir .. "R.png"
 		rightImg.Size = faceSizeUDim
 		rightImg.Position = facePositionUDim
 		rightImg.BackgroundTransparency = 1
@@ -128,7 +132,7 @@ local function setupFace(char)
 	leftOuchEye = Instance.new("ImageLabel")
 	leftOuchEye.Name = "LeftEyeOuch"
 	leftOuchEye.Parent = faceGui
-	leftOuchEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "OuchL.png"
+	leftOuchEye.Image = "rbxasset://facial/" .. eyePrefix .. "OuchL.png"
 	leftOuchEye.Size = faceSizeUDim
 	leftOuchEye.Position = facePositionUDim
 	leftOuchEye.BackgroundTransparency = 1
@@ -138,7 +142,7 @@ local function setupFace(char)
 	rightOuchEye = Instance.new("ImageLabel")
 	rightOuchEye.Name = "RightEyeOuch"
 	rightOuchEye.Parent = faceGui
-	rightOuchEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "OuchR.png"
+	rightOuchEye.Image = "rbxasset://facial/" .. eyePrefix .. "OuchR.png"
 	rightOuchEye.Size = faceSizeUDim
 	rightOuchEye.Position = facePositionUDim
 	rightOuchEye.BackgroundTransparency = 1
@@ -148,7 +152,7 @@ local function setupFace(char)
 	local leftClosedEye = Instance.new("ImageLabel")
 	leftClosedEye.Name = "LeftClosedEye"
 	leftClosedEye.Parent = faceGui
-	leftClosedEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "ClosedL.png"
+	leftClosedEye.Image = "rbxasset://facial/" .. closedPrefix .. "L.png"
 	leftClosedEye.Size = faceSizeUDim
 	leftClosedEye.Position = facePositionUDim
 	leftClosedEye.BackgroundTransparency = 1
@@ -157,7 +161,7 @@ local function setupFace(char)
 	local rightClosedEye = Instance.new("ImageLabel")
 	rightClosedEye.Name = "RightClosedEye"
 	rightClosedEye.Parent = faceGui
-	rightClosedEye.Image = "rbxasset://facial/" .. EYE_TYPE .. "ClosedR.png"
+	rightClosedEye.Image = "rbxasset://facial/" .. closedPrefix .. "R.png"
 	rightClosedEye.Size = faceSizeUDim
 	rightClosedEye.Position = facePositionUDim
 	rightClosedEye.BackgroundTransparency = 1
