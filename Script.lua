@@ -1,7 +1,7 @@
 -- Configuration
 local EYE_TYPE = 2  -- 2 = female
 local EYEBROW_TYPE = 3  -- 1 to 3
-local MOUTH_TYPE = 2  -- 1 to 3
+local MOUTH_TYPE = 3  -- 1 to 3
 local FACE_SIZE = 1 -- Overall face size multiplier
 local BLINK_INTERVAL_MIN = 2
 local BLINK_INTERVAL_MAX = 6
